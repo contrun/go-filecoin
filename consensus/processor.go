@@ -5,9 +5,13 @@ import (
 	"math/big"
 	"time"
 
+	"gx/ipfs/QmNVpHFt7QmabuVQyguf8AbkLDZoFh7ifBYztqijYT1Sd2/go.opencensus.io/stats"
+	"gx/ipfs/QmNVpHFt7QmabuVQyguf8AbkLDZoFh7ifBYztqijYT1Sd2/go.opencensus.io/tag"
+
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/metrics"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
@@ -95,9 +99,16 @@ func NewConfiguredProcessor(validator SignedMessageValidator, rewarder BlockRewa
 func (p *DefaultProcessor) ProcessBlock(ctx context.Context, st state.Tree, vms vm.StorageMap, blk *types.Block, ancestors []types.TipSet) ([]*ApplicationResult, error) {
 	var emptyResults []*ApplicationResult
 
+	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyMethod, "ProcessBlock"))
+	if err != nil {
+		return nil, err
+	}
+
 	processBlkTimer := time.Now()
 	defer func() {
-		log.Infof("[TIMER] DefaultProcessor.ProcessBlock BlkCID: %s - elapsed time: %s", blk.Cid(), time.Since(processBlkTimer).Round(time.Millisecond))
+		dur := time.Since(processBlkTimer).Round(time.Millisecond)
+		log.Infof("[TIMER] DefaultProcessor.ProcessBlock BlkCID: %s - elapsed time: %s", blk.Cid(), dur)
+		stats.Record(ctx, metrics.MProcessBlockMs.M(float64(dur)/1e6))
 	}()
 
 	// find miner's owner address
@@ -267,9 +278,16 @@ func (p *DefaultProcessor) ApplyMessage(ctx context.Context, st state.Tree, vms 
 		return nil, errors.FaultErrorWrap(err, "could not get message cid")
 	}
 
+	ctx, err = tag.New(ctx, tag.Insert(metrics.KeyMethod, "ApplyMessage"))
+	if err != nil {
+		return nil, err
+	}
+
 	applyMsgTimer := time.Now()
 	defer func() {
-		log.Infof("[TIMER] DefaultProcessor.ApplyMessage CID: %s - elapsed time: %s", msgCid.String(), time.Since(applyMsgTimer).Round(time.Millisecond))
+		dur := time.Since(applyMsgTimer).Round(time.Millisecond)
+		log.Infof("[TIMER] DefaultProcessor.ApplyMessage CID: %s - elapsed time: %s", msgCid.String(), dur)
+		stats.Record(ctx, metrics.MApplyMessageMs.M(float64(dur)/1e6))
 	}()
 
 	cachedStateTree := state.NewCachedStateTree(st)
