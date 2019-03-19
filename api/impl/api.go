@@ -11,8 +11,7 @@ type nodeAPI struct {
 	node   *node.Node
 	logger logging.EventLogger
 
-	daemon *nodeDaemon
-	swarm  *nodeSwarm
+	swarm *nodeSwarm
 }
 
 // Assert that nodeAPI fullfills the api.API interface.
@@ -24,14 +23,9 @@ func New(node *node.Node) api.API {
 		node:   node,
 		logger: logging.Logger("api"),
 	}
-	api.daemon = newNodeDaemon(api)
 	api.swarm = newNodeSwarm(api)
 
 	return api
-}
-
-func (api *nodeAPI) Daemon() api.Daemon {
-	return api.daemon
 }
 
 func (api *nodeAPI) Swarm() api.Swarm {
