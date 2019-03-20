@@ -83,11 +83,8 @@ func (mq *MessageQueue) Clear(sender address.Address) bool {
 	defer mq.lk.Unlock()
 
 	q := mq.queues[sender]
-	if len(q) > 0 {
-		mq.queues[sender] = []*QueuedMessage{}
-		return true
-	}
-	return false
+	delete(mq.queues, sender)
+	return len(q) > 0
 }
 
 // ExpireBefore clears the queue of any sender where the first message in the queue has a stamp less than `stamp`.
@@ -119,6 +116,20 @@ func (mq *MessageQueue) LargestNonce(sender address.Address) (largest uint64, fo
 		return uint64(q[len(q)-1].Msg.Nonce), true
 	}
 	return 0, false
+}
+
+// Queues returns the addresses associated with each non-empty queue.
+func (mq *MessageQueue) Queues() []address.Address {
+	mq.lk.RLock()
+	defer mq.lk.RUnlock()
+
+	keys := make([]address.Address, len(mq.queues))
+	i := 0
+	for k := range mq.queues {
+		keys[i] = k
+		i++
+	}
+	return keys
 }
 
 // List returns a copy of the list of messages queued for an address.
